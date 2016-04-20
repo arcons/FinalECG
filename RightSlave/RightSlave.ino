@@ -38,7 +38,7 @@ void setup()
   // Select configuration register
   Wire.write(0x01);
   // AINP = AIN0 and AINN = AIN1, +/- 2.048V
-  Wire.write(0x84);
+  Wire.write(0x80);
   // Continuous conversion mode, 250 SPS
   Wire.write(0xC3);
   //Allow the LED to output
