@@ -57,9 +57,9 @@ void loop() {
     memset(rightInput,0,sizeof(rightInput)); 
     memset(leftInput,0,sizeof(rightInput)); 
 //    //output the hex values
-//   if(Serial2.available()>=2 && Serial3.available()>=2)
+   if(Serial2.available()>=2 && Serial3.available()>=2)
 //   if(BTSerial.available()>=2 && Serial3.available()>=2)
-   if(Serial3.available()>=2) 
+//   if(Serial3.available()>=2) 
    {
         leftInput[0]=Serial2.read();
         leftInput[1]=Serial2.read();
