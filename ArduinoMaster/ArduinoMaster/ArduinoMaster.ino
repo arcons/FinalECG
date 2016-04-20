@@ -1,8 +1,6 @@
 #include <Wire.h>
 #include <Adafruit_MCP4725.h>
-#include <SoftwareSerial.h>
 
-SoftwareSerial BTSerial(11, 10);
  Adafruit_MCP4725 dacRight;
  Adafruit_MCP4725 dacLeft;
  bool connectionStatus=false;
@@ -22,10 +20,10 @@ SoftwareSerial BTSerial(11, 10);
 void setup() {
   // put your setup code here, to run once:
   pinMode(13, OUTPUT);
-  //Karson is Serial
+  //Karson is Serial RX3
   Serial.begin(9600);
   //Joey is Serial1
-  Serial1.begin(9600);
+  Serial1.begin(57600);
   //Serial2 is Left RX1 of BOARD
   Serial2.begin(9600);
 //  BTSerial.begin(9600);
