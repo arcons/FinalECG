@@ -1,6 +1,13 @@
 #include <Wire.h>
 #include <Adafruit_MCP4725.h>
 
+typedef struct LinkedList {
+	struct LinkedList* next;
+	unsigned long timestamp;
+	byte dHigh;
+	byte dLow;
+} LinkedList;
+
 Adafruit_MCP4725 dacRight;
 Adafruit_MCP4725 dacLeft;
 bool connectionStatus=false;
@@ -87,8 +94,10 @@ void loop() {
 		leftInput[1]=Serial2.read();
 		rightInput[0]=Serial3.read();
 		rightInput[1]=Serial3.read();
+		
 		Serial2.write(0x00);
 		Serial3.write(0x00);
+		
 		rightVoltage = (rightInput[0]*256) + rightInput[1];
 		leftVoltage = (leftInput[0]*256) + leftInput[1];
 
@@ -103,11 +112,14 @@ void loop() {
 		//add the difference between the two
 		rightVoltage=rightVoltage+voltageRightDiffer;
 		leftVoltage=leftVoltage+voltageLeftDiffer;
+		
 		//add the difference between the two
 		rightVoltage=(rightVoltage/16)+voltageRightDiffer;
 		leftVoltage=(leftVoltage/16)+voltageLeftDiffer;
+		
 		rightVoltage=rightVoltage/2;
 		leftVoltage=leftVoltage/2;
+		
 		if (leftVoltage<0) {
 			leftVoltage=0;
 		}
@@ -120,8 +132,10 @@ void loop() {
 		else if (rightVoltage>4096) {
 			rightVoltage=4095;
 		}
+		
 		dacRight.setVoltage(rightVoltage, false);
 		dacLeft.setVoltage(leftVoltage, false);
+		
 		digitalWrite(13, LOW);
 	}
 	if (Serial1.available()) {
