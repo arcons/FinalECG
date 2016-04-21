@@ -41,8 +41,8 @@ void setup() {
 	digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
 	delay(100);     
 	//Start the write address(Jumper from A0 to VDD)
-	dacRight.begin(0x62);
-	dacLeft.begin(0x63);
+	Wire.begin();
+//	dacLeft.begin(0x63);
 	Serial2.print("go");
 	//  BTSerial.print("go");
 	Serial3.print("go");
@@ -121,8 +121,18 @@ void loop() {
 			rightVoltage=4095;
 		}
 		dacRight.setVoltage(rightVoltage, false);
-		dacLeft.setVoltage(leftVoltage, false);
-		digitalWrite(13, LOW);
+    dacLeft.setVoltage(leftVoltage, false);
+//    Wire.begin(0x62);
+//    Wire.write(0x40);
+//    Wire.write(rightVoltage / 16);                   // Upper data bits          (D11.D10.D9.D8.D7.D6.D5.D4)
+//    Wire.write((rightVoltage % 16) << 4);
+//    
+//    Wire.begin(0x63);
+//    Wire.write(leftVoltage / 16);                   // Upper data bits          (D11.D10.D9.D8.D7.D6.D5.D4)
+//    Wire.write((lefttVoltage % 16) << 4);
+//		digitalWrite(13, LOW);
+//
+//    Wire.endTransmission();
 	}
 	if (Serial1.available()) {
 		Serial1.readBytes(joeyInput, 4);
