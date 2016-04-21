@@ -13,12 +13,12 @@ typedef struct BufferItem {
 /**
  * Functional Prototypes
  */
-void delete(BufferItem buffer[], uint16_t index);
-void insert(BufferItem buffer[], long timestamp, uint16_t voltage);
-void pushBack(BufferItem* buffer, uint16_t index);
+void deleteBufferItem(BufferItem syncBuffer[], uint16_t index);
+void insert(BufferItem syncBuffer[], long timestamp, uint16_t voltage);
+void pushBack(BufferItem* syncBuffer, uint16_t index);
 bool isIndexInBounds(uint16_t index);
-void sort(BufferItem buffer[]);
-uint16_t getCount(BufferItem buffer[]);
+void sort(BufferItem syncBuffer[]);
+uint16_t getCount(BufferItem syncBuffer[]);
 
 
 /**
@@ -35,19 +35,17 @@ uint16_t lastLeftValue=0;
 uint16_t lastRightValue=0;
 int16_t voltageDiffer=0;
 uint16_t counter=0;
-float tstOutput;
+float tstOutput=0;
 byte joeyInput[4];
 bool firstRun = true;
 BufferItem rightBuffer[SIZE_DATA_BUFFER];
 BufferItem leftBuffer[SIZE_DATA_BUFFER];
-int16_t timestamp;
-int16_t timestampDiff;
-int16_t leftCount;
-int16_t rightCount;
+int16_t timestamp=0;
+int16_t timestampDiff=0;
+int16_t leftCount=0;
+int16_t rightCount=0;
 
 void setup() {
-	int a;
-	LinkedList* tmp;
 
 	// put your setup code here, to run once:
 	pinMode(13, OUTPUT);
@@ -104,7 +102,7 @@ void loop() {
 		voltage = (leftInput[0] * 256) + leftInput[1];
 
 		//find a difference between the previous value 
-		voltageRightDiffer = rightVoltage - lastRightValue;
+		voltageDiffer = voltage - lastRightValue;
 
 		//set the last value to the current value
 		lastRightValue = voltage;
@@ -126,10 +124,10 @@ void loop() {
 		
 		// Packet Timestamp
 		timestamp = 0;
-		timestamp += d[0] << 24;
-		timestamp += d[1] << 16;
-		timestamp += d[2] << 8;
-		timestamp += d[3];
+		timestamp += leftInput[2] << 24;
+		timestamp += leftInput[3] << 16;
+		timestamp += leftInput[4] << 8;
+		timestamp += leftInput[5];
 		
 		insert(leftBuffer, timestamp, voltage);
 	}
@@ -170,10 +168,10 @@ void loop() {
 		
 		// Packet Timestamp
 		timestamp = 0;
-		timestamp += d[0] << 24;
-		timestamp += d[1] << 16;
-		timestamp += d[2] << 8;
-		timestamp += d[3];
+		timestamp += rightInput[2] << 24;
+		timestamp += rightInput[3] << 16;
+		timestamp += rightInput[4] << 8;
+		timestamp += rightInput[5];
 		
 		insert(rightBuffer, timestamp, voltage);
 	}
@@ -181,10 +179,10 @@ void loop() {
 	leftCount = getCount(leftBuffer);
 	rightCount = getCount(rightBuffer);
 	while (leftCount >= 6 && rightCount >= 6) {
-		dacRight.setVoltage(rightBuffer[rightCount - 1]->voltage, false);
-		dacLeft.setVoltage(leftVoltage[leftCount - 1]->voltage, false);
-		delete(buffer, --rightCount);
-		delete(buffer, --leftCount);
+		dacRight.setVoltage(rightBuffer[rightCount - 1].voltage, false);
+		dacLeft.setVoltage(leftBuffer[leftCount - 1].voltage, false);
+		deleteBufferItem(rightBuffer, --rightCount);
+		deleteBufferItem(leftBuffer, --leftCount);
 	}
 	digitalWrite(13, LOW);
 	
@@ -194,49 +192,49 @@ void loop() {
 	}
 }
 
-void delete(BufferItem buffer[], uint16_t index) {
-	if (buffer == NULL ||
+void deleteBufferItem(BufferItem syncBuffer[], uint16_t index) {
+	if (syncBuffer == NULL ||
 		!isIndexInBounds(index)) {
 		return;
 	}
-	buffer[index]->timestamp = -1;
-	sort(buffer);
+	syncBuffer[index].timestamp = -1;
+	sort(syncBuffer);
 }
 
-void sort(BufferItem buffer[]) {
+void sort(BufferItem syncBuffer[]) {
 	int a;
+  int b;
 	long tTimestamp;
 	uint16_t tVoltage;
-	if (buffer == NULL ||
-		!isIndexInBounds()) {
+	if (syncBuffer == NULL) {
 		return;
 	}
 	
 	// TODO: Use a better algorithm
 	for(a=0; a<=SIZE_DATA_BUFFER; a++) {
 		for(b=a+1; b<=SIZE_DATA_BUFFER; b++) {
-			if (buffer[a]->timestamp < buffer[b]->timestamp) {
-				tTimestamp = buffer[a]->timestamp;
-				tVoltage = buffer[a]->voltage;
+			if (syncBuffer[a].timestamp < syncBuffer[b].timestamp) {
+				tTimestamp = syncBuffer[a].timestamp;
+				tVoltage = syncBuffer[a].voltage;
 				
-				buffer[a]->timestamp = buffer[b]->timestamp;
-				buffer[a]->voltage = buffer[b]->voltage;
+				syncBuffer[a].timestamp = syncBuffer[b].timestamp;
+				syncBuffer[a].voltage = syncBuffer[b].voltage;
 				
-				buffer[b]->timestamp = tTimestamp;
-				buffer[b]->voltage = tVoltage;
+				syncBuffer[b].timestamp = tTimestamp;
+				syncBuffer[b].voltage = tVoltage;
 			}
 		}
 	}
 }
 
-uint16_t getCount(BufferItem buffer[]) {
+uint16_t getCount(BufferItem syncBuffer[]) {
 	int count = 0;
 	int a;
-	if (buffer == NULL) {
-		return;
+	if (syncBuffer == NULL) {
+		return 0;
 	}
 	for(a=0; a<SIZE_DATA_BUFFER; a++) {
-		if (buffer[a]->timestamp == -1`) {
+		if (syncBuffer[a].timestamp == -1) {
 			break;
 		}
 		count++;
@@ -244,28 +242,28 @@ uint16_t getCount(BufferItem buffer[]) {
 	return count;
 }
 
-void insert(BufferItem buffer[], long timestamp, uint16_t voltage) {
+void insert(BufferItem syncBuffer[], long timestamp, uint16_t voltage) {
 	int a;
 	for(a=0; a<SIZE_DATA_BUFFER; a++) {
-		if (buffer[a]->timestamp < timestamp) {
-			pushBack(buffer, a);
-			buffer[a]->timestamp = timestamp;
-			buffer[a]->voltage = voltage;
+		if (syncBuffer[a].timestamp < timestamp) {
+			pushBack(syncBuffer, a);
+			syncBuffer[a].timestamp = timestamp;
+			syncBuffer[a].voltage = voltage;
 			break;
 		}
 	}
 }
 
-void pushBack(BufferItem buffer[], uint16_t index) {
-	if (buffer == NULL || 
-		!isIndexInBounds() ||
+void pushBack(BufferItem syncBuffer[], uint16_t index) {
+	if (syncBuffer == NULL || 
+		!isIndexInBounds(index) ||
 		index - 1 < SIZE_DATA_BUFFER ||
-		buffer[index]->timestamp == -1) {
+		syncBuffer[index].timestamp == -1) {
 		return;
 	}
-	pushBack(buffer, index);
-	buffer[index + 1]->timestamp = buffer[index]->timestamp;
-	buffer[index + 1]->voltage = buffer[index]->voltage;
+	pushBack(syncBuffer, index);
+	syncBuffer[index + 1].timestamp = syncBuffer[index].timestamp;
+	syncBuffer[index + 1].voltage = syncBuffer[index].voltage;
 }
 
 bool isIndexInBounds(uint16_t index) {
