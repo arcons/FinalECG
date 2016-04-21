@@ -90,7 +90,7 @@ void loop() {
 	memset(rightInput,0,sizeof(rightInput)); 
 	memset(leftInput,0,sizeof(leftInput));
 
-	if (Serial2.available() >= PACKET_SIZE && 
+	while (Serial2.available() >= PACKET_SIZE && 
 		getCount(leftBuffer) < SIZE_DATA_BUFFER) {
 		
 		// Read packets
@@ -134,7 +134,7 @@ void loop() {
 		insert(leftBuffer, timestamp, voltage);
 	}
 	
-	if (Serial3.available() >= PACKET_SIZE && 
+	while (Serial3.available() >= PACKET_SIZE && 
 		getCount(leftBuffer) < SIZE_DATA_BUFFER) {
 		
 		// Read packets
