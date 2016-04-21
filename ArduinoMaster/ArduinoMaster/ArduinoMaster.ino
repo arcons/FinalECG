@@ -1,31 +1,54 @@
 #include <Wire.h>
 #include <Adafruit_MCP4725.h>
 
-typedef struct LinkedList {
-	struct LinkedList* next;
-	unsigned long timestamp;
-	byte dHigh;
-	byte dLow;
-} LinkedList;
+#define PACKET_SIZE 6
+#define SIZE_DATA_BUFFER 5
 
+typedef struct BufferItem {
+	long timestamp;
+	uint16_t voltage;
+} BufferItem;
+
+
+/**
+ * Functional Prototypes
+ */
+void delete(BufferItem buffer[], uint16_t index);
+void insert(BufferItem buffer[], long timestamp, uint16_t voltage);
+void pushBack(BufferItem* buffer, uint16_t index);
+bool isIndexInBounds(uint16_t index);
+void sort(BufferItem buffer[]);
+uint16_t getCount(BufferItem buffer[]);
+
+
+/**
+ * Global Variables
+ */
 Adafruit_MCP4725 dacRight;
 Adafruit_MCP4725 dacLeft;
 bool connectionStatus=false;
 char goMessage[2] = {'g', 'o'};
 byte rightInput[10];
 byte leftInput[10];
-uint16_t rightVoltage;
-uint16_t leftVoltage;
+uint16_t voltage;
 uint16_t lastLeftValue=0;
 uint16_t lastRightValue=0;
-int16_t voltageLeftDiffer=0;
-int16_t voltageRightDiffer=0;
+int16_t voltageDiffer=0;
 uint16_t counter=0;
 float tstOutput;
 byte joeyInput[4];
 bool firstRun = true;
+BufferItem rightBuffer[SIZE_DATA_BUFFER];
+BufferItem leftBuffer[SIZE_DATA_BUFFER];
+int16_t timestamp;
+int16_t timestampDiff;
+int16_t leftCount;
+int16_t rightCount;
 
 void setup() {
+	int a;
+	LinkedList* tmp;
+
 	// put your setup code here, to run once:
 	pinMode(13, OUTPUT);
 	//Karson is Serial RX3
@@ -46,7 +69,8 @@ void setup() {
 	digitalWrite(13, HIGH);   // turn the LED on (HIGH is the voltage level)
 	delay(100);              // wait for a second
 	digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
-	delay(100);     
+	delay(100);
+	
 	//Start the write address(Jumper from A0 to VDD)
 	dacRight.begin(0x62);
 	dacLeft.begin(0x63);
@@ -60,86 +84,190 @@ void setup() {
 }
 
 void loop() {
-	bool hasLeft = false;
-	bool hasRight = false;
-	// put your main code here, to run repeatedly:
+	int a;
+	
 	//Input should be no larger than twenty bytes since thats however many that can sent via BLE
 	memset(rightInput,0,sizeof(rightInput)); 
-	memset(leftInput,0,sizeof(leftInput)); 
+	memset(leftInput,0,sizeof(leftInput));
 
-	//Check for synchronization
-	if (firstRun) {
-		do {
-			//left
-			if (Serial2.available() >= 2) {
-				hasLeft=true;
-				Serial2.read();
-				Serial2.read();
-				Serial2.write(0x00);
-			}
-			if (Serial3.available() >= 2) {
-				hasRight=true;
-				Serial3.read();
-				Serial3.read();
-				Serial3.write(0x00);
-			}
-			digitalWrite(13, HIGH);
-		} while(!(hasLeft && hasRight));
-		//end of the first run both are receving data
-		firstRun=false;
-	}
-
-	if (Serial2.available()>=2 && Serial3.available()>=2) {
-		leftInput[0]=Serial2.read();
-		leftInput[1]=Serial2.read();
-		rightInput[0]=Serial3.read();
-		rightInput[1]=Serial3.read();
+	if (Serial2.available() >= PACKET_SIZE && 
+		getCount(leftBuffer) < SIZE_DATA_BUFFER) {
 		
+		// Read packets
+		for(a=0; a<PACKET_SIZE; a++) {
+			leftInput[a] = Serial2.read();
+		}
+		
+		// Send ACK
 		Serial2.write(0x00);
-		Serial3.write(0x00);
 		
-		rightVoltage = (rightInput[0]*256) + rightInput[1];
-		leftVoltage = (leftInput[0]*256) + leftInput[1];
+		voltage = (leftInput[0] * 256) + leftInput[1];
 
 		//find a difference between the previous value 
-		voltageRightDiffer = rightVoltage-lastRightValue;
-		voltageLeftDiffer = leftVoltage-lastLeftValue;
+		voltageRightDiffer = rightVoltage - lastRightValue;
 
 		//set the last value to the current value
-		lastLeftValue = leftVoltage;
-		lastRightValue = rightVoltage;
+		lastRightValue = voltage;
+		
+		//add the difference between the two
+		voltage = voltage + voltageDiffer;
+		
+		//add the difference between the two
+		voltage = (voltage / 16) + voltageDiffer;
+		
+		voltage = voltage / 2;
+		
+		if (voltage < 0) {
+			voltage = 0;
+		}
+		else if (voltage > 4096) {
+			voltage = 4095;
+		}
+		
+		// Packet Timestamp
+		timestamp = 0;
+		timestamp += d[0] << 24;
+		timestamp += d[1] << 16;
+		timestamp += d[2] << 8;
+		timestamp += d[3];
+		
+		insert(leftBuffer, timestamp, voltage);
+	}
+	
+	if (Serial3.available() >= PACKET_SIZE && 
+		getCount(leftBuffer) < SIZE_DATA_BUFFER) {
+		
+		// Read packets
+		for(a=0; a<PACKET_SIZE; a++) {
+			rightInput[a] = Serial3.read();
+		}
+		
+		// Send ACK
+		Serial3.write(0x00);
+		
+		voltage = (rightInput[0] * 256) + rightInput[1];
+
+		//find a difference between the previous value 
+		voltageDiffer = voltage - lastRightValue;
+
+		//set the last value to the current value
+		lastRightValue = voltage;
 
 		//add the difference between the two
-		rightVoltage=rightVoltage+voltageRightDiffer;
-		leftVoltage=leftVoltage+voltageLeftDiffer;
+		voltage = voltage + voltageDiffer;
 		
 		//add the difference between the two
-		rightVoltage=(rightVoltage/16)+voltageRightDiffer;
-		leftVoltage=(leftVoltage/16)+voltageLeftDiffer;
+		voltage = (voltage / 16) + voltageDiffer;
 		
-		rightVoltage=rightVoltage/2;
-		leftVoltage=leftVoltage/2;
+		voltage = voltage / 2;
 		
-		if (leftVoltage<0) {
-			leftVoltage=0;
+		if (voltage < 0) {
+			voltage = 0;
 		}
-		else if (leftVoltage>4096) {
-			leftVoltage=4095;
-		}
-		if (rightVoltage<0) {
-			rightVoltage=0;
-		}
-		else if (rightVoltage>4096) {
-			rightVoltage=4095;
+		else if (voltage > 4096) {
+			voltage = 4095;
 		}
 		
-		dacRight.setVoltage(rightVoltage, false);
-		dacLeft.setVoltage(leftVoltage, false);
+		// Packet Timestamp
+		timestamp = 0;
+		timestamp += d[0] << 24;
+		timestamp += d[1] << 16;
+		timestamp += d[2] << 8;
+		timestamp += d[3];
 		
-		digitalWrite(13, LOW);
+		insert(rightBuffer, timestamp, voltage);
 	}
+	
+	leftCount = getCount(leftBuffer);
+	rightCount = getCount(rightBuffer);
+	while (leftCount >= 6 && rightCount >= 6) {
+		dacRight.setVoltage(rightBuffer[rightCount - 1]->voltage, false);
+		dacLeft.setVoltage(leftVoltage[leftCount - 1]->voltage, false);
+		delete(buffer, --rightCount);
+		delete(buffer, --leftCount);
+	}
+	digitalWrite(13, LOW);
+	
 	if (Serial1.available()) {
 		Serial1.readBytes(joeyInput, 4);
-		Serial.write(joeyInput,4);
+		Serial.write(joeyInput, 4);
 	}
+}
+
+void delete(BufferItem buffer[], uint16_t index) {
+	if (buffer == NULL ||
+		!isIndexInBounds(index)) {
+		return;
+	}
+	buffer[index]->timestamp = -1;
+	sort(buffer);
+}
+
+void sort(BufferItem buffer[]) {
+	int a;
+	long tTimestamp;
+	uint16_t tVoltage;
+	if (buffer == NULL ||
+		!isIndexInBounds()) {
+		return;
+	}
+	
+	// TODO: Use a better algorithm
+	for(a=0; a<=SIZE_DATA_BUFFER; a++) {
+		for(b=a+1; b<=SIZE_DATA_BUFFER; b++) {
+			if (buffer[a]->timestamp < buffer[b]->timestamp) {
+				tTimestamp = buffer[a]->timestamp;
+				tVoltage = buffer[a]->voltage;
+				
+				buffer[a]->timestamp = buffer[b]->timestamp;
+				buffer[a]->voltage = buffer[b]->voltage;
+				
+				buffer[b]->timestamp = tTimestamp;
+				buffer[b]->voltage = tVoltage;
+			}
+		}
+	}
+}
+
+uint16_t getCount(BufferItem buffer[]) {
+	int count = 0;
+	int a;
+	if (buffer == NULL) {
+		return;
+	}
+	for(a=0; a<SIZE_DATA_BUFFER; a++) {
+		if (buffer[a]->timestamp == -1`) {
+			break;
+		}
+		count++;
+	}
+	return count;
+}
+
+void insert(BufferItem buffer[], long timestamp, uint16_t voltage) {
+	int a;
+	for(a=0; a<SIZE_DATA_BUFFER; a++) {
+		if (buffer[a]->timestamp < timestamp) {
+			pushBack(buffer, a);
+			buffer[a]->timestamp = timestamp;
+			buffer[a]->voltage = voltage;
+			break;
+		}
+	}
+}
+
+void pushBack(BufferItem buffer[], uint16_t index) {
+	if (buffer == NULL || 
+		!isIndexInBounds() ||
+		index - 1 < SIZE_DATA_BUFFER ||
+		buffer[index]->timestamp == -1) {
+		return;
+	}
+	pushBack(buffer, index);
+	buffer[index + 1]->timestamp = buffer[index]->timestamp;
+	buffer[index + 1]->voltage = buffer[index]->voltage;
+}
+
+bool isIndexInBounds(uint16_t index) {
+	return index >= 0 && index < SIZE_DATA_BUFFER;
 }
