@@ -20,7 +20,7 @@ char recMessage[2];
 //ASCII for go
 char goMessage[2] = {'g', 'o'};
 byte adcData[2];
-byte outputData[2];
+byte outputData[6];
 unsigned long timeStamp;
 uint16_t voltage;
 uint16_t temp;
@@ -91,7 +91,7 @@ void loop() // run over and over
       }
      if(Serial.available()>=1)
         {
-        Serial.write(outputData, 2);  
+        Serial.write(outputData, 6);  
         digitalWrite(LED, LOW);
         Serial.read();
         }
