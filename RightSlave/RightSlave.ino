@@ -16,12 +16,12 @@
 #define Addr 0x48
 
 boolean start = false;
-uint16_t runTime;
 char recMessage[2];
 //ASCII for go
 char goMessage[2] = {'g', 'o'};
 byte adcData[2];
-byte outputData[2];
+byte outputData[6];
+unsigned long timeStamp;
 uint16_t voltage;
 uint16_t temp;
 
@@ -80,32 +80,18 @@ void loop() // run over and over
     // raw_adc msb, raw_adc lsb
      if(Wire.available() == 2)
       {
-//      adcData[0] = Wire.read();//MSB
-//      adcData[1] = Wire.read();//LSB
         outputData[0] = Wire.read();//MSB
         outputData[1] = Wire.read();//LSB
+        
+        timeStamp = millis();
+        outputData[2] = (timeStamp  >> 24) & 0x000000FF;
+        outputData[3] = (timeStamp  >> 16) & 0x000000FF;
+        outputData[6] = (timeStamp  >> 8) & 0x000000FF;
+        outputData[5] = timeStamp & 0x000000FF;
       }
      if(Serial.available()>=1)
         {
-        //Use send two separate 16 bit values, not sure if this will fix the issue
-//       outputData[0]=(byte)adcData[0];
-//        outputData[1]=(byte)adcData[1];
-//        temp = adcData[0];
-//        temp &= 0xFF;
-//        outputData[0]=(adcData[0] >> 8) & 0xFF;
-//        outputData[1]=temp;//LSB0 adcData[0]
-//        temp = ((outputData[0] << 8) & 0xFF00) & (outputData[1] & 0x00FF);
-//        temp = adcData[1];
-//        temp &= 0xFF;
-//        outputData[2]=(adcData[1] >>8) & 0xFF;//MSB1 adcData[1]
-//        outputData[3]=temp;//LSB1 adcData[1]
-//        Serial.print(outputData[0], BIN);
-//        Serial.print("\t");
-//        Serial.println(outputData[1], BIN);
-//        voltage = (outputData[0]*256) + outputData[1];
-          Serial.write(outputData, 2);
-//        Serial.print(voltage);
-//        Serial.flush();
+        Serial.write(outputData, 6);  
         digitalWrite(LED, LOW);
         Serial.read();
         }
