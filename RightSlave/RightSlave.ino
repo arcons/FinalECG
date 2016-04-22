@@ -20,7 +20,7 @@ char recMessage[2];
 //ASCII for go
 char goMessage[2] = {'g', 'o'};
 byte adcData[2];
-byte outputData[6];
+byte outputData[2];
 unsigned long timeStamp;
 uint16_t voltage;
 uint16_t temp;
@@ -82,16 +82,10 @@ void loop() // run over and over
       {
         outputData[0] = Wire.read();//MSB
         outputData[1] = Wire.read();//LSB
-        
-        timeStamp = millis();
-        outputData[2] = (timeStamp  >> 24) & 0x000000FF;
-        outputData[3] = (timeStamp  >> 16) & 0x000000FF;
-        outputData[6] = (timeStamp  >> 8) & 0x000000FF;
-        outputData[5] = timeStamp & 0x000000FF;
       }
      if(Serial.available()>=1)
         {
-        Serial.write(outputData, 6);  
+        Serial.write(outputData, 2);  
         digitalWrite(LED, LOW);
         Serial.read();
         }
