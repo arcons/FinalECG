@@ -55,6 +55,7 @@ void setup()
   delay(100);
   //ads.startComparator_SingleEnded(0, 1000);
   delay(300);
+  Serial.print("Starting");
 }
 
 void loop() // run over and over
@@ -82,26 +83,24 @@ void loop() // run over and over
       {
         outputData[0] = Wire.read();//MSB
         outputData[1] = Wire.read();//LSB
-        
-        timeStamp = millis();
-        outputData[2] = (timeStamp  >> 24) & 0x000000FF;
-        outputData[3] = (timeStamp  >> 16) & 0x000000FF;
-        outputData[6] = (timeStamp  >> 8) & 0x000000FF;
-        outputData[5] = timeStamp & 0x000000FF;
       }
      if(Serial.available()>=1)
         {
+        timeStamp = millis();
+        outputData[2] = (timeStamp  >> 24) & 0x000000FF;
+        outputData[3] = (timeStamp  >> 16) & 0x000000FF;
+        outputData[4] = (timeStamp  >> 8)  & 0x000000FF;
+        outputData[5] = timeStamp & 0x000000FF;
         Serial.write(outputData, 6);  
         digitalWrite(LED, LOW);
         Serial.read();
-        }
-//      }  
+        } 
+  } 
 //    //Develop a recognized disconnect method
 //    if(!Serial.available())
 //    {
 //      start=false;
 //    }
-  }
   
   else
   {

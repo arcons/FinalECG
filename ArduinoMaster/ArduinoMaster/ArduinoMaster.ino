@@ -2,7 +2,7 @@
 #include <Adafruit_MCP4725.h>
 
 #define PACKET_SIZE 6
-#define SIZE_DATA_BUFFER 5
+#define SIZE_DATA_BUFFER 6
 
 typedef struct BufferItem {
 	long timestamp;
@@ -40,7 +40,7 @@ byte joeyInput[4];
 bool firstRun = true;
 BufferItem rightBuffer[SIZE_DATA_BUFFER];
 BufferItem leftBuffer[SIZE_DATA_BUFFER];
-int16_t timestamp=0;
+unsigned long timestamp=0;
 int16_t timestampDiff=0;
 int16_t leftCount=0;
 int16_t rightCount=0;
@@ -73,39 +73,32 @@ void setup() {
 	dacRight.begin(0x62);
 	dacLeft.begin(0x63);
 	Serial2.print("go");
-	//  BTSerial.print("go");
 	Serial3.print("go");
 	Serial2.write(0x00);
-	//  BTSerial.print(0);
 	Serial3.write(0x00);
-	Serial.println("Starting transmission");
 }
 
 void loop() {
 	int a;
-	
 	//Input should be no larger than twenty bytes since thats however many that can sent via BLE
 	memset(rightInput,0,sizeof(rightInput)); 
 	memset(leftInput,0,sizeof(leftInput));
 
-	while (Serial2.available() >= PACKET_SIZE && 
-		getCount(leftBuffer) < SIZE_DATA_BUFFER) {
-		
+	if (Serial2.available() >= PACKET_SIZE) {
 		// Read packets
 		for(a=0; a<PACKET_SIZE; a++) {
 			leftInput[a] = Serial2.read();
+//      Serial.print("Reading bytes");
 		}
-		
 		// Send ACK
 		Serial2.write(0x00);
-		
 		voltage = (leftInput[0] * 256) + leftInput[1];
 
 		//find a difference between the previous value 
-		voltageDiffer = voltage - lastRightValue;
+		voltageDiffer = voltage - lastLeftValue;
 
 		//set the last value to the current value
-		lastRightValue = voltage;
+		lastLeftValue = voltage;
 		
 		//add the difference between the two
 		voltage = voltage + voltageDiffer;
@@ -123,17 +116,27 @@ void loop() {
 		}
 		
 		// Packet Timestamp
-		timestamp = 0;
-		timestamp += leftInput[2] << 24;
-		timestamp += leftInput[3] << 16;
-		timestamp += leftInput[4] << 8;
-		timestamp += leftInput[5];
-		
+		timestamp = 0x00000000;
+		timestamp |= (leftInput[2] << 24) & 0xFF000000;
+		timestamp |= (leftInput[3] << 16) & 0x00FF0000;
+		timestamp |= (leftInput[4] << 8)  & 0x0000FF00;
+		timestamp |=  leftInput[5]        & 0x000000FF;
+//    Serial.print(leftInput[2]);
+//    Serial.print("\t ");
+//    Serial.print(leftInput[3]);
+//    Serial.print("\t ");
+//    Serial.print(leftInput[4]);
+//    Serial.print("\t ");
+//    Serial.print(leftInput[5]);
+//    Serial.print("\t ");
+//    Serial.print(timestamp);
+//    Serial.println("\t ");
+//		Serial.println("Insert Starting");
 		insert(leftBuffer, timestamp, voltage);
+//   Serial.println("Insert Complete");
 	}
 	
-	while (Serial3.available() >= PACKET_SIZE && 
-		getCount(leftBuffer) < SIZE_DATA_BUFFER) {
+	if (Serial3.available() >= PACKET_SIZE) {
 		
 		// Read packets
 		for(a=0; a<PACKET_SIZE; a++) {
@@ -142,7 +145,7 @@ void loop() {
 		
 		// Send ACK
 		Serial3.write(0x00);
-		
+//		Serial.println("Sending ACK");
 		voltage = (rightInput[0] * 256) + rightInput[1];
 
 		//find a difference between the previous value 
@@ -167,20 +170,33 @@ void loop() {
 		}
 		
 		// Packet Timestamp
-		timestamp = 0;
-		timestamp += rightInput[2] << 24;
-		timestamp += rightInput[3] << 16;
-		timestamp += rightInput[4] << 8;
-		timestamp += rightInput[5];
-		
+		timestamp = 0x00000000;
+    timestamp |= (rightInput[2] << 24) & 0xFF000000;
+    timestamp |= (rightInput[3] << 16) & 0x00FF0000;
+    timestamp |= (rightInput[4] << 8)  & 0x0000FF00;
+    timestamp |=  rightInput[5]        & 0x000000FF;
+//    Serial.print(rightInput[2]);
+//    Serial.print("\t ");
+//    Serial.print(rightInput[3]);
+//    Serial.print("\t ");
+//    Serial.print(rightInput[4]);
+//    Serial.print("\t ");
+//    Serial.print(rightInput[5]);
+//    Serial.print("\t ");
+//    Serial.print(timestamp);
+//    Serial.println("\t ");
 		insert(rightBuffer, timestamp, voltage);
 	}
 	
 	leftCount = getCount(leftBuffer);
 	rightCount = getCount(rightBuffer);
-	while (leftCount >= 6 && rightCount >= 6) {
+	if (leftCount >= 6 && rightCount >= 6) {
 		dacRight.setVoltage(rightBuffer[rightCount - 1].voltage, false);
 		dacLeft.setVoltage(leftBuffer[leftCount - 1].voltage, false);
+//    Serial.print("Left ");
+//    Serial.print(leftBuffer[leftCount -1].timestamp);
+//    Serial.print("\t Right ");
+//    Serial.println(rightBuffer[rightCount -1].timestamp);
 		deleteBufferItem(rightBuffer, --rightCount);
 		deleteBufferItem(leftBuffer, --leftCount);
 	}
@@ -261,7 +277,7 @@ void pushBack(BufferItem syncBuffer[], uint16_t index) {
 		syncBuffer[index].timestamp == -1) {
 		return;
 	}
-	pushBack(syncBuffer, index);
+	pushBack(syncBuffer, index+1);
 	syncBuffer[index + 1].timestamp = syncBuffer[index].timestamp;
 	syncBuffer[index + 1].voltage = syncBuffer[index].voltage;
 }
